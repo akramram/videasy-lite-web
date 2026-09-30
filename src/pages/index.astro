@@ -20,10 +20,10 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Search movies and stream instantly. Simple, fast, no account." />
     <!--
-      The videasy.xyz embed sometimes frames http:// URLs (e.g. free-host cookie
-      interstitial sv101.ifastnet.com) which browsers block as mixed content on
-      our HTTPS page. upgrade-insecure-requests is inherited by child frames, so
-      those sub-requests get upgraded to https:// instead of being blocked.
+      Kept from the KUR-21 mixed-content fix: upgrade-insecure-requests is
+      inherited by child frames, so any http:// sub-request inside the embed
+      gets upgraded to https:// instead of blocked. Belt-and-suspenders next
+      to the official player switch (see src/lib/videasy.ts).
     -->
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
     <title>Videasy Lite — Movie Search & Watch</title>
@@ -59,7 +59,7 @@ try {
     </main>
 
     <footer class="border-t border-zinc-800/60 py-6 text-center text-xs text-zinc-600">
-      Metadata: Cinemeta (Stremio) · Player: videasy.xyz
+      Metadata: Cinemeta (Stremio) · Player: videasy (player.videasy.net)
     </footer>
   </body>
 </html>
