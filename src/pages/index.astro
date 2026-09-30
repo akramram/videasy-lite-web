@@ -19,6 +19,13 @@ try {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Search movies and stream instantly. Simple, fast, no account." />
+    <!--
+      The videasy.xyz embed sometimes frames http:// URLs (e.g. free-host cookie
+      interstitial sv101.ifastnet.com) which browsers block as mixed content on
+      our HTTPS page. upgrade-insecure-requests is inherited by child frames, so
+      those sub-requests get upgraded to https:// instead of being blocked.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
     <title>Videasy Lite — Movie Search & Watch</title>
   </head>
   <body class="min-h-dvh bg-zinc-950 text-zinc-100 antialiased">
