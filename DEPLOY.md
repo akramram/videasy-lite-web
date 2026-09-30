@@ -33,6 +33,14 @@ Juga: bind 127.0.0.1 di homelab2 cukup (forward SSH ke 192.168.0.4 loopback-nya)
      `HOST=127.0.0.1` bikin tunnel 502 (kejadian 2026-09-30, KUR-21). Selalu `pm2 save` setelahnya.
 5. Verify: `curl -s http://127.0.0.1:4599/` -> 200; `curl -s 'http://127.0.0.1:4599/api/search?q=heat+1995'`; dari Mac `curl -s http://127.0.0.1:4599/` -> 200 (forward hidup).
 
+## Cookie gate (KUR-21, 2026-09-30)
+Root cause: videasy.xyz/embed routes some titles through a free-host ad/cookie
+interstitial (sv101.ifastnet.com/cookies.html) that needs third-party cookies;
+blocked cookies = permanent "Cookies are not enabled." screen. Fix (commit
+0ec3a7b, branch fix/kur-21-cookie-gate-official-player): embed switched to the
+official player.videasy.net (no gate; TMDB + IMDB ids verified on movie + tv
+routes). CSP upgrade-insecure-requests kept as belt-and-suspenders.
+
 ## CSP (KUR-21)
 `<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">` di `src/pages/index.astro`.
 Embed videasy.xyz kadang frame `http://sv101.ifastnet.com/cookies.html` (interstitial
