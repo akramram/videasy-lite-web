@@ -19,7 +19,7 @@ export interface EmbedTarget {
   readonly episode?: number;
 }
 
-const BASE = "https://player.videasy.net" as const;
+const BASE = "https://player.videasy.to" as const;
 
 export function embedUrl(target: EmbedTarget): string {
   const { type, id } = target;
