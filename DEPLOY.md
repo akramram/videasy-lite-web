@@ -3,9 +3,16 @@
 Issue KUR-16. App frontend pencarian film + player embed videasy.xyz. Ringan, keyless (tanpa API key), SSR.
 
 ## Live
-- URL: http://192.168.0.4:4599 (bind 127.0.0.1 di homelab2)
-- PM2: app `videasy-lite` (id 1), cwd /opt/videasy-lite, saved ke dump.pm2
+- URL publik: https://videasy.kurulabs.dpdns.org (via tunnel `findash` → Mac → SSH forward → homelab2)
+- Origin: homelab2 0.0.0.0:4599 (PM2 app `videasy-lite`, id 1, cwd /opt/videasy-lite, saved ke dump.pm2)
+- Chain: CF → cloudflared (Mac, PM2 `findash-tunnel`, ingress `videasy.kurulabs.dpdns.org → http://localhost:4599`) → PM2 `ssh-homelab2-videasy` (autossh `-L 4599:192.168.0.4:4599 homelab2`) → app
 - Logs: `ssh homelab2 pm2 logs videasy-lite`
+
+## Kenapa via SSH forward (bukan langsung IP LAN)
+cloudflared di Mac di-block macOS local-network filter untuk binary unsigned: dial TCP ke IP LAN mana pun
+(EHOSTUNREACH) padahal curl/ssh/python lolos. Pola terbukti yang existing: homepage via autossh `-L 9080`.
+Jangan ganti ingress ke `http://192.168.0.4:4599` — akan 502 `no route to host`.
+Juga: bind 127.0.0.1 di homelab2 cukup (forward SSH ke 192.168.0.4 loopback-nya), tapi sekarang 0.0.0.0 dan dua-duanya OK.
 
 ## Stack
 - Astro 5 SSR (node standalone adapter) + React 19 island (SearchBox/Player), TS strict + Zod, Tailwind v4
