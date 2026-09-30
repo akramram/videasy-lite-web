@@ -20,12 +20,12 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Search movies and stream instantly. Simple, fast, no account." />
     <!--
-      Kept from the KUR-21 mixed-content fix: upgrade-insecure-requests is
-      inherited by child frames, so any http:// sub-request inside the embed
-      gets upgraded to https:// instead of blocked. Belt-and-suspenders next
-      to the official player switch (see src/lib/videasy.ts).
+      KUR-21 left this page with `upgrade-insecure-requests`, but that directive
+      also upgrades the page's own CSS/JS when the app is opened over plain
+      http:// on the LAN (KUR-24: broken styling). The official player switch
+      (commit 0ec3a7b) already serves everything over https, so the directive is
+      no longer needed here — do not re-add it.
     -->
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
     <title>Videasy Lite — Movie Search & Watch</title>
   </head>
   <body class="min-h-dvh bg-zinc-950 text-zinc-100 antialiased">
