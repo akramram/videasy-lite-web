@@ -19,14 +19,39 @@ export interface EmbedTarget {
   readonly episode?: number;
 }
 
-const BASE = "https://player.videasy.to" as const;
+export type ServerOption = "videasy" | "vidlink" | "vidsrc";
 
-export function embedUrl(target: EmbedTarget): string {
-  const { type, id } = target;
-  if (type === "tv") {
-    const season = target.season ?? 1;
-    const episode = target.episode ?? 1;
-    return `${BASE}/tv/${id}/${season}/${episode}`;
-  }
-  return `${BASE}/movie/${id}`;
+const SERVERS: Record<ServerOption, { label: string; buildUrl: (target: EmbedTarget) => string }> = {
+  videasy: {
+    label: "Server 1 (Videasy)",
+    buildUrl: (target) => {
+      const { type, id } = target;
+      const base = "https://player.videasy.to";
+      return type === "tv"
+        ? `${base}/tv/${id}/${target.season ?? 1}/${target.episode ?? 1}`
+        : `${base}/movie/${id}`;
+    },
+  },
+  vidlink: {
+    label: "Server 2 (VidLink)",
+    buildUrl: (target) => {
+      const { type, id } = target;
+      return type === "tv"
+        ? `https://vidlink.pro/tv/${id}/${target.season ?? 1}/${target.episode ?? 1}`
+        : `https://vidlink.pro/movie/${id}`;
+    },
+  },
+  vidsrc: {
+    label: "Server 3 (Vidsrc)",
+    buildUrl: (target) => {
+      const { type, id } = target;
+      return type === "tv"
+        ? `https://vidsrc.to/embed/tv/${id}/${target.season ?? 1}/${target.episode ?? 1}`
+        : `https://vidsrc.to/embed/movie/${id}`;
+    },
+  },
+};
+
+export function embedUrl(target: EmbedTarget, server: ServerOption = "videasy"): string {
+  return SERVERS[server].buildUrl(target);
 }
