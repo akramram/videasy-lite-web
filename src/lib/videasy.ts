@@ -26,7 +26,9 @@ const SERVERS: Record<ServerOption, { label: string; buildUrl: (target: EmbedTar
     label: "Server 1 (Videasy)",
     buildUrl: (target) => {
       const { type, id } = target;
-      const base = "https://player.videasy.to";
+      // Canonical official domain (KUR-21/KUR-31); player.videasy.to is its
+      // current 301 target, kept as redirect headroom if it moves back.
+      const base = "https://player.videasy.net";
       return type === "tv"
         ? `${base}/tv/${id}/${target.season ?? 1}/${target.episode ?? 1}`
         : `${base}/movie/${id}`;
