@@ -21,7 +21,7 @@ export function Player({ target }: { target: EmbedTarget }) {
         />
       </div>
 
-      <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
+      <div className="flex flex-col gap-2 text-xs text-zinc-400 px-0 sm:flex-row sm:items-center sm:justify-between">
         <span>If video doesn't play or errors, switch server:</span>
         <div className="flex items-center gap-1.5">
           {(["videasy", "vidlink", "vidsrc"] as const).map((s) => (
@@ -29,7 +29,7 @@ export function Player({ target }: { target: EmbedTarget }) {
               key={s}
               type="button"
               onClick={() => setServer(s)}
-              className={`rounded px-2.5 py-1 font-medium transition ${
+              className={`min-h-[44px] rounded px-3 font-medium transition ${
                 server === s
                   ? "bg-purple-600 text-white"
                   : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
