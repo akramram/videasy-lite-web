@@ -11,6 +11,7 @@ const REQUIRED_ORIGIN = "https://web.stremio.com";
 const MetaSchema = z.object({
   id: z.string().regex(/^tt\d+$/),
   name: z.string().min(1),
+  type: z.enum(["movie", "series"]).optional().catch(undefined),
   releaseInfo: z
     .string()
     .default("")
@@ -112,3 +113,93 @@ export function rankResults(
 }
 
 export { CatalogSchema, MetaSchema };
+
+// ---- Detail (KUR-25) ----
+// Meta detail: https://v3-cinemeta.strem.io/meta/{type}/{imdb_id}.json
+// Series episodes live in `videos[]`; TMDB id in `moviedb_id` (player prefers it).
+
+export const VideoSchema = z.object({
+  id: z.string().catch(""),
+  name: z.string().default("").catch(""),
+  season: z.number().default(1).catch(1),
+  number: z.number().default(1).catch(1),
+  overview: z.string().optional().catch(undefined),
+  thumbnail: z.string().url().optional().catch(undefined),
+});
+export type Video = z.infer<typeof VideoSchema>;
+
+export const DetailSchema = MetaSchema.extend({
+  description: z.string().default("").catch(""),
+  imdbRating: z.string().optional().catch(undefined),
+  runtime: z.string().optional().catch(undefined),
+  genres: z.array(z.string()).optional().catch(undefined),
+  cast: z.array(z.string()).optional().catch(undefined),
+  director: z.union([z.array(z.string()), z.string()]).optional().catch(undefined),
+  moviedb_id: z.union([z.number(), z.string()]).optional().catch(undefined),
+  videos: z.array(VideoSchema).optional().catch(undefined),
+});
+export type Detail = z.infer<typeof DetailSchema>;
+
+/** TMDB numeric id for the player, or null when Cinemeta has none. */
+export function tmdbId(d: Detail): string | null {
+  const v = d.moviedb_id;
+  if (v === null || v === undefined) return null;
+  const s = String(v);
+  return /^\d+$/.test(s) ? s : null;
+}
+
+export async function movieDetail(id: string, signal: AbortSignal): Promise<Detail> {
+  const raw = await getJson(`${CINEMETA}/meta/movie/${encodeURIComponent(id)}.json`, signal);
+  return DetailSchema.parse((raw as { meta: unknown }).meta);
+}
+
+export async function seriesDetail(id: string, signal: AbortSignal): Promise<Detail> {
+  const raw = await getJson(`${CINEMETA}/meta/series/${encodeURIComponent(id)}.json`, signal);
+  return DetailSchema.parse((raw as { meta: unknown }).meta);
+}
+
+/** Resolve a title id: movies first, series as fallback (route does not encode type). */
+export async function detailAny(
+  id: string,
+  signal: AbortSignal,
+): Promise<{ type: "movie" | "series"; detail: Detail }> {
+  try {
+    return { type: "movie", detail: await movieDetail(id, signal) };
+  } catch (cause) {
+    const status = cause instanceof ApiError ? cause.status : 0;
+    if (status !== 404 && status !== 400) throw cause;
+    return { type: "series", detail: await seriesDetail(id, signal) };
+  }
+}
+
+/** Combined movie + series search, tagged with type. Series searched by the
+ *  raw query (year-suffix queries miss in the series catalog). */
+export async function searchAny(
+  query: string,
+  signal: AbortSignal,
+): Promise<readonly Meta[]> {
+  const parsed = parseQuery(query);
+  const [movies, series] = await Promise.allSettled([
+    searchMovies(query, signal),
+    seriesSearch(parsed.title, signal),
+  ]);
+  const movieMetas = (movies.status === "fulfilled" ? movies.value.metas : []).map(
+    (m): Meta => ({ ...m, type: m.type ?? "movie" }),
+  );
+  const seriesMetas = (series.status === "fulfilled" ? series.value.metas : []).map(
+    (m): Meta => ({ ...m, type: "series" }),
+  );
+  // Movies ranked first (year-aware); series appended after.
+  return [...rankResults(movieMetas, parsed), ...seriesMetas];
+}
+
+export async function seriesSearch(
+  query: string,
+  signal: AbortSignal,
+): Promise<Catalog> {
+  const raw = await getJson(
+    `${CINEMETA}/catalog/series/top/search=${encodeURIComponent(query)}.json`,
+    signal,
+  );
+  return CatalogSchema.parse(raw);
+}

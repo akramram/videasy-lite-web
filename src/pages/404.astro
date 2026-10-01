@@ -1,0 +1,20 @@
+---
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout title="Not found — Videasy Lite">
+  <main class="mx-auto flex min-h-[60vh] w-full max-w-6xl flex-col items-center justify-center gap-4 px-4 text-center">
+    <p class="text-6xl font-bold tracking-tight text-zinc-800">404</p>
+    <h1 class="text-xl font-semibold text-zinc-200">That title isn't here.</h1>
+    <p class="max-w-md text-sm leading-relaxed text-zinc-500">
+      The link may be wrong, or the title isn't in our metadata source. Try
+      searching for it instead.
+    </p>
+    <a
+      href="/"
+      class="rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-purple-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+    >
+      Search a title
+    </a>
+  </main>
+</Layout>

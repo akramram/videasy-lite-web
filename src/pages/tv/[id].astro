@@ -1,0 +1,48 @@
+---
+import TitlePage from "@/components/TitlePage.astro";
+import { movieDetail, seriesDetail } from "@/lib/cinemeta";
+import type { Detail } from "@/lib/cinemeta";
+
+const { id } = Astro.params;
+if (!id || !/^tt\d+$/.test(id)) {
+  return Astro.rewrite("/404");
+}
+
+// ?s=N season selection (validated against the real season list in TitlePage).
+const sParam = Astro.url.searchParams.get("s");
+const season = sParam && /^\d+$/.test(sParam) ? Number(sParam) : 1;
+
+// Series-first probe (canonical series route). Movie fallback exists only so
+// that /tv/{movieId} 302s to /title/ instead of 404ing. Route decides the
+// type — Cinemeta's own `type` field is optional/unreliable.
+const signal = Astro.locals.runtime?.signal ?? AbortSignal.timeout(8000);
+
+async function resolveTitle(
+  titleId: string,
+  sig: AbortSignal,
+): Promise<{ detail: Detail; isSeries: boolean } | null> {
+  try {
+    return { detail: await seriesDetail(titleId, sig), isSeries: true };
+  } catch {
+    // fall through to movie
+  }
+  try {
+    return { detail: await movieDetail(titleId, sig), isSeries: false };
+  } catch {
+    return null;
+  }
+}
+
+const resolved = await resolveTitle(id, signal);
+if (!resolved) {
+  console.error("[tv] detail failed", id);
+  return Astro.rewrite("/404");
+}
+
+// Movies live at /title/{id}; series render here.
+if (!resolved.isSeries) {
+  return Astro.redirect(`/title/${resolved.detail.id}`, 302);
+}
+---
+
+<TitlePage id={resolved.detail.id} type="series" detail={resolved.detail} season={season} />

@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { parseQuery, rankResults, searchMovies } from "@/lib/cinemeta";
+import { searchAny } from "@/lib/cinemeta";
 
 export const GET: APIRoute = async ({ url }) => {
   const q = (url.searchParams.get("q") ?? "").trim();
@@ -11,9 +11,7 @@ export const GET: APIRoute = async ({ url }) => {
   }
 
   try {
-    const catalog = await searchMovies(q, AbortSignal.timeout(8000));
-    const parsed = parseQuery(q);
-    const results = rankResults(catalog.metas, parsed);
+    const results = await searchAny(q, AbortSignal.timeout(8000));
     return Response.json(
       { results },
       {

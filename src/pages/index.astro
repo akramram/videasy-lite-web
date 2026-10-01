@@ -2,64 +2,42 @@
 import "@/styles/global.css";
 import { popularMovies } from "@/lib/cinemeta";
 import type { Meta } from "@/lib/cinemeta";
-import { SearchBox, MovieGrid } from "@/islands";
+import { SearchBox } from "@/islands";
+import Layout from "@/layouts/Layout.astro";
+import MovieGrid from "@/components/MovieGrid.astro";
 
 let metas: Meta[] = [];
 let error: string | null = null;
 try {
-  const catalog = await popularMovies(Astro.locals.runtime?.signal ?? new AbortController().signal);
+  const catalog = await popularMovies(Astro.locals.runtime?.signal ?? AbortSignal.timeout(8000));
   metas = catalog.metas.slice(0, 24);
 } catch (cause) {
   error = cause instanceof Error ? cause.message : "Failed to load movies";
 }
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Search movies and stream instantly. Simple, fast, no account." />
-    <!--
-      KUR-21 left this page with `upgrade-insecure-requests`, but that directive
-      also upgrades the page's own CSS/JS when the app is opened over plain
-      http:// on the LAN (KUR-24: broken styling). The official player switch
-      (commit 0ec3a7b) already serves everything over https, so the directive is
-      no longer needed here — do not re-add it.
-    -->
-    <title>Videasy Lite — Movie Search & Watch</title>
-  </head>
-  <body class="min-h-dvh bg-zinc-950 text-zinc-100 antialiased">
-    <header class="border-b border-zinc-800/60">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <a href="/" class="text-lg font-bold tracking-tight">videasy<span class="text-purple-500">.lite</span></a>
-        <span class="text-xs text-zinc-500">no account · no tracking</span>
-      </div>
-    </header>
+<Layout>
+  <main class="py-10">
+    <section class="px-4 pb-12">
+      <h1 class="pb-6 text-center text-3xl font-bold tracking-tight md:text-4xl">
+        Find a movie. <span class="text-purple-500">Press play.</span>
+      </h1>
+      <SearchBox client:only="react" />
+    </section>
 
-    <main class="py-10">
-      <section class="px-4 pb-12">
-        <h1 class="pb-6 text-center text-3xl font-bold tracking-tight md:text-4xl">
-          Find a movie. <span class="text-purple-500">Press play.</span>
-        </h1>
-        <SearchBox client:only="react" />
-      </section>
-
-      <section class="px-4">
-        <h2 class="mx-auto max-w-6xl pb-4 text-sm font-semibold tracking-wide text-zinc-400 uppercase">
-          Popular now
-        </h2>
-        {error ? (
+    <section class="px-4">
+      <h2 class="mx-auto max-w-6xl pb-4 text-sm font-semibold tracking-wide text-zinc-400 uppercase">
+        Popular now
+      </h2>
+      {
+        error ? (
           <p class="mx-auto max-w-6xl rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
             {error}
           </p>
         ) : (
-          <MovieGrid client:load metas={metas} />
-        )}
-      </section>
-    </main>
-
-    <footer class="border-t border-zinc-800/60 py-6 text-center text-xs text-zinc-600">
-      Metadata: Cinemeta (Stremio) · Player: videasy (player.videasy.net)
-    </footer>
-  </body>
-</html>
+          <MovieGrid metas={metas} />
+        )
+      }
+    </section>
+  </main>
+</Layout>

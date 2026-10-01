@@ -1,0 +1,31 @@
+---
+import { posterUrl } from "@/lib/cinemeta";
+import type { Meta } from "@/lib/cinemeta";
+
+interface Props {
+  metas: readonly Meta[];
+}
+const { metas } = Astro.props;
+---
+
+<ul class="mx-auto grid w-full max-w-6xl grid-cols-2 gap-4 px-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+  {
+    metas.map((m) => (
+      <li class="group">
+        <a href={`/title/${m.id}`} class="block" aria-label={`Open ${m.name}`}>
+          <span class="block aspect-2/3 w-full overflow-hidden rounded-lg bg-zinc-800 transition group-hover:ring-2 group-hover:ring-purple-500">
+            <img
+              src={posterUrl(m.id)}
+              alt={m.name}
+              loading="lazy"
+              decoding="async"
+              class="h-full w-full object-cover"
+            />
+          </span>
+          <span class="mt-2 block truncate text-sm text-zinc-200">{m.name}</span>
+          <span class="block text-xs text-zinc-500">{m.releaseInfo}</span>
+        </a>
+      </li>
+    ))
+  }
+</ul>

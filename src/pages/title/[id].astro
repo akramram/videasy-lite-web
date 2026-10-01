@@ -1,0 +1,46 @@
+---
+import TitlePage from "@/components/TitlePage.astro";
+import { movieDetail, seriesDetail } from "@/lib/cinemeta";
+import type { Detail } from "@/lib/cinemeta";
+
+const { id } = Astro.params;
+if (!id || !/^tt\d+$/.test(id)) {
+  return Astro.rewrite("/404");
+}
+
+// Series-first probe: Cinemeta keeps junk movie records under some series ids
+// (e.g. movie/tt0903747 -> "Mirror"), so movie-first would mask the real
+// series and never redirect. Valid series -> 302 /tv/{id}; movie fallback
+// renders here. Route decides the type — Cinemeta's own `type` field is
+// optional/unreliable.
+const signal = Astro.locals.runtime?.signal ?? AbortSignal.timeout(8000);
+
+async function resolveTitle(
+  titleId: string,
+  sig: AbortSignal,
+): Promise<{ detail: Detail; isSeries: boolean } | null> {
+  try {
+    return { detail: await seriesDetail(titleId, sig), isSeries: true };
+  } catch {
+    // fall through to movie
+  }
+  try {
+    return { detail: await movieDetail(titleId, sig), isSeries: false };
+  } catch {
+    return null;
+  }
+}
+
+const resolved = await resolveTitle(id, signal);
+if (!resolved) {
+  console.error("[title] detail failed", id);
+  return Astro.rewrite("/404");
+}
+
+// Series live at /tv/{id}; movies render here.
+if (resolved.isSeries) {
+  return Astro.redirect(`/tv/${resolved.detail.id}`, 302);
+}
+---
+
+<TitlePage id={resolved.detail.id} type="movie" detail={resolved.detail} />
