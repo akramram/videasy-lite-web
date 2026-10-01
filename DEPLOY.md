@@ -50,7 +50,23 @@ ini diwarisi child frame, jadi sub-request http di dalam embed di-upgrade ke htt
 klik link "HERE" di interstitial cookie → frame harus tetap `https://`.
 
 ## GitHub — BLOCKED (pending Akram)
-- Remote dituju `akramram/videasy-lite-app` tapi push 403: PAT fine-grained (keyring github_pat_1... + store) tidak punya Contents:write utk repo baru; Administration:write ada (bisa create repo) tapi Deploy keys API 403.
-- Fix: update salah satu PAT -> allowlist repo baru + Contents:RW (atau "All repositories"). Lalu: push `feat/initial-implementation` -> PR -> merge (aturan: jangan langsung ke main).
+- Remote `origin` = `akramram/videasy-lite-web.git`. Push 403 (re-verified
+  2026-10-01, KUR-31): PAT fine-grained (keyring github_pat_1... + store)
+  tidak punya Contents:write utk repo ini; Administration:write ada (bisa
+  create repo) tapi Deploy keys API 403.
+- Fix: update salah satu PAT -> allowlist repo `videasy-lite-web` +
+  Contents:RW (atau "All repositories"). Lalu: push `feat/initial-implementation`
+  -> PR (body siap di `PR_BODY.md`) -> merge (aturan: jangan langsung ke main).
 - Repo sisa eksperimen (boleh dihapus): `videasy-lite-web`, `videasy-lite-app2`, `videasy-probe-fg`.
 - Note: repo `videasy-lite-app` (private?) ada di akun tapi tidak visible dari PAT manapun — cek via web UI.
+
+## KUR-25 detail routing live (2026-10-01, KUR-30 + KUR-31)
+- `feat/kur-25-detail-routing` (0f7b392: TitlePage + /title//-/tv/ split)
+  merged -> kanon `feat/initial-implementation` (merge 6677ba5; +a022295
+  env.d.ts App.Locals + astro check devDeps; +fb5daca player base balik ke
+  player.videasy.net). `main` tidak disentuh.
+- Player domain note: player.videasy.net sekarang 301 -> player.videasy.to
+  (app sama, no gate). Base tetap .net (domain kanonik + evidence KUR-21).
+- Verify produksi pasca-deploy: / 200, search heat+1995 rank#1 Heat(1995),
+  /title/tt0113277 200, /tv/tt0903747 200 (+?s=2 S2 episodes), cross-302s,
+  unknown id 404, publik tunnel semua 200.
