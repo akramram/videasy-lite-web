@@ -61,7 +61,7 @@ export function WatchPanel({ target, title, backHref }: WatchPanelProps) {
     return (
       <div
         data-watch-panel=""
-        className="overflow-hidden rounded-xl border border-zinc-800/70 bg-zinc-900/50"
+        className="scroll-mt-20 overflow-hidden rounded-xl border border-zinc-800/70 bg-zinc-900/50"
       >
         <button
           type="button"
@@ -81,7 +81,7 @@ export function WatchPanel({ target, title, backHref }: WatchPanelProps) {
               Play S{target.season}E{target.episode}
             </span>
           ) : (
-            <span className="text-sm text-zinc-400">Play trailer-style embed</span>
+            <span className="text-sm text-zinc-400">Play movie</span>
           )}
           <span className="absolute inset-0 flex items-center justify-center">
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg transition group-hover:scale-105 group-hover:bg-purple-500 focus:outline-none">
@@ -96,12 +96,12 @@ export function WatchPanel({ target, title, backHref }: WatchPanelProps) {
   }
 
   return (
-    <div data-watch-panel="" className="flex flex-col gap-2">
+    <div data-watch-panel="" className="scroll-mt-20 flex flex-col gap-2">
       <div className="flex items-center justify-between text-xs text-zinc-400">
         <span className="min-w-0 truncate">
           Now playing: <span className="text-zinc-200">{now.label}</span>
         </span>
-        <a href={backHref} className="shrink-0 text-zinc-400 hover:text-zinc-200">
+        <a href={backHref} className="p-2 -m-2 shrink-0 text-zinc-400 hover:text-zinc-200">
           Back to search
         </a>
       </div>
