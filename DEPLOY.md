@@ -28,8 +28,26 @@ Juga: bind 127.0.0.1 di homelab2 cukup (forward SSH ke 192.168.0.4 loopback-nya)
 1. `cd ~/hermes-workspace/videasy-lite && npm run build`
 2. `COPYFILE_DISABLE=1 tar czf /tmp/v.tgz --exclude 'node_modules/.cache' dist package.json node_modules`
 3. `scp /tmp/v.tgz homelab2:/tmp/`
-4. `ssh homelab2 'pm2 stop videasy-lite; cd /opt/videasy-lite && rm -rf dist node_modules package.json && tar xzf /tmp/v.tgz && rm /tmp/v.tgz; PORT=4599 HOST=127.0.0.1 pm2 restart videasy-lite --update-env'`
-5. Verify: `curl -s http://127.0.0.1:4599/` -> 200; `curl -s 'http://127.0.0.1:4599/api/search?q=heat+1995'`
+4. `ssh homelab2 'pm2 stop videasy-lite; cd /opt/videasy-lite && rm -rf dist node_modules package.json && tar xzf /tmp/v.tgz && rm /tmp/v.tgz; PORT=4599 HOST=0.0.0.0 pm2 restart videasy-lite --update-env && pm2 save'`
+   - **Wajib `HOST=0.0.0.0`**: autossh forward di Mac menarget `192.168.0.4:4599`, jadi
+     `HOST=127.0.0.1` bikin tunnel 502 (kejadian 2026-09-30, KUR-21). Selalu `pm2 save` setelahnya.
+5. Verify: `curl -s http://127.0.0.1:4599/` -> 200; `curl -s 'http://127.0.0.1:4599/api/search?q=heat+1995'`; dari Mac `curl -s http://127.0.0.1:4599/` -> 200 (forward hidup).
+
+## Cookie gate (KUR-21, 2026-09-30)
+Root cause: videasy.xyz/embed routes some titles through a free-host ad/cookie
+interstitial (sv101.ifastnet.com/cookies.html) that needs third-party cookies;
+blocked cookies = permanent "Cookies are not enabled." screen. Fix (commit
+0ec3a7b, branch fix/kur-21-cookie-gate-official-player): embed switched to the
+official player.videasy.net (no gate; TMDB + IMDB ids verified on movie + tv
+routes). CSP upgrade-insecure-requests kept as belt-and-suspenders.
+
+## CSP (KUR-21)
+`<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">` di `src/pages/index.astro`.
+Embed videasy.xyz kadang frame `http://sv101.ifastnet.com/cookies.html` (interstitial
+cookie free-host mereka); tanpa CSP ini Chromium block sebagai mixed content. Direktif
+ini diwarisi child frame, jadi sub-request http di dalam embed di-upgrade ke https
+(sv101.ifastnet.com ternyata support HTTPS — verified 200). Verifikasi: buat player,
+klik link "HERE" di interstitial cookie → frame harus tetap `https://`.
 
 ## GitHub — BLOCKED (pending Akram)
 - Remote dituju `akramram/videasy-lite-app` tapi push 403: PAT fine-grained (keyring github_pat_1... + store) tidak punya Contents:write utk repo baru; Administration:write ada (bisa create repo) tapi Deploy keys API 403.

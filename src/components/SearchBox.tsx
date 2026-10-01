@@ -2,7 +2,6 @@ import { useId, useState } from "react";
 import { posterUrl } from "@/lib/cinemeta";
 import type { Meta } from "@/lib/cinemeta";
 import { useMovieSearch } from "@/hooks/useMovieSearch";
-import { Player } from "@/components/Player";
 
 function Poster({ meta }: { meta: Meta }) {
   const [failed, setFailed] = useState(false);
@@ -19,10 +18,19 @@ function Poster({ meta }: { meta: Meta }) {
   );
 }
 
+function detailHref(m: Meta): string {
+  return m.type === "series" ? `/tv/${m.id}` : `/title/${m.id}`;
+}
+
+/**
+ * Autocomplete search. Every result is a real link to its detail page
+ * (/title/{imdb} or /tv/{imdb}) so results are shareable, keyboard-navigable,
+ * and open even with client JS disabled. The old inline-player mode is gone:
+ * detail pages are the single watch surface (KUR-25).
+ */
 export function SearchBox() {
   const { query, setQuery, state } = useMovieSearch();
   const [open, setOpen] = useState(true);
-  const [target, setTarget] = useState<{ id: string; name: string } | null>(null);
   const listId = useId();
   const showList = open && state.kind !== "idle";
 
@@ -35,7 +43,7 @@ export function SearchBox() {
         aria-controls={listId}
         aria-autocomplete="list"
         autoComplete="off"
-        placeholder="Search movies — title or title + year…"
+        placeholder="Search movies and series — title or title + year…"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -56,7 +64,9 @@ export function SearchBox() {
             <li className="px-4 py-3 text-sm text-zinc-400">Searching…</li>
           )}
           {state.kind === "empty" && (
-            <li className="px-4 py-3 text-sm text-zinc-400">No results.</li>
+            <li className="px-4 py-3 text-sm text-zinc-400">
+              No results. Try a different title or add a year.
+            </li>
           )}
           {state.kind === "error" && (
             <li className="px-4 py-3 text-sm text-red-400">
@@ -66,14 +76,9 @@ export function SearchBox() {
           {state.kind === "success" &&
             state.results.map((m) => (
               <li key={m.id}>
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setTarget({ id: m.id, name: m.name });
-                    setOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-zinc-800"
+                <a
+                  href={detailHref(m)}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-zinc-800 focus:bg-zinc-800 focus:outline-none"
                 >
                   <span className="h-14 w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
                     <Poster meta={m} />
@@ -83,29 +88,13 @@ export function SearchBox() {
                       {m.name}
                     </span>
                     <span className="block text-xs text-zinc-500">
-                      {m.releaseInfo}
+                      {m.type === "series" ? "Series" : "Movie"} · {m.releaseInfo}
                     </span>
                   </span>
-                </button>
+                </a>
               </li>
             ))}
         </ul>
-      )}
-
-      {target && (
-        <div className="mt-6">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold text-zinc-100">{target.name}</h2>
-            <button
-              type="button"
-              onClick={() => setTarget(null)}
-              className="text-xs text-zinc-400 hover:text-zinc-200"
-            >
-              close
-            </button>
-          </div>
-          <Player target={{ type: "movie", id: target.id }} />
-        </div>
       )}
     </div>
   );

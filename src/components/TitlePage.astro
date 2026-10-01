@@ -1,0 +1,169 @@
+---
+// Detail page (movie or series) — KUR-25. Rendered by /title/[id] (movies)
+// and /tv/[id] (series). Series with episodes get a season <select> (multi
+// season only) + episode buttons wired by src/scripts/detail.ts; multi-season
+// pages SSR only the ?s=N season's episodes (default season 1).
+import Layout from "@/layouts/Layout.astro";
+import { WatchPanel } from "@/islands";
+import { parseYear, posterUrl, tmdbId } from "@/lib/cinemeta";
+import type { Detail } from "@/lib/cinemeta";
+import type { EmbedTarget } from "@/lib/videasy";
+
+interface Props {
+  id: string;
+  type: "movie" | "series";
+  detail: Detail;
+  /** ?s=N season param resolved by /tv/[id] (series only, default 1). */
+  season?: number;
+}
+
+const { id, type, detail, season = 1 } = Astro.props;
+
+const videos = [...(detail.videos ?? [])].sort(
+  (a, b) => a.season - b.season || a.number - b.number,
+);
+const seasons = [...new Set(videos.map((v) => v.season))].sort((a, b) => a - b);
+const isSeries = type === "series" && seasons.length > 0;
+const isMultiSeason = isSeries && seasons.length > 1;
+// ?s=N wins when it names a real season; otherwise the first that exists.
+const activeSeason =
+  isMultiSeason && seasons.includes(season) ? season : (seasons[0] ?? 1);
+const episodes = isSeries ? videos.filter((v) => v.season === activeSeason) : [];
+
+const year = parseYear(detail.releaseInfo);
+// Player prefers the TMDB id; IMDB id is a verified fallback (KUR-21).
+const target: EmbedTarget =
+  type === "movie"
+    ? { type: "movie", id: tmdbId(detail) ?? id }
+    : { type: "tv", id: tmdbId(detail) ?? id, season: activeSeason, episode: 1 };
+
+const backdrop = `https://images.metahub.space/background/medium/${detail.id}/img`;
+const poster = detail.poster ?? posterUrl(detail.id);
+---
+
+<Layout title={`${detail.name} — Videasy Lite`}>
+  <main class="pb-16">
+    <section class="relative">
+      <div class="absolute inset-0 overflow-hidden" aria-hidden="true">
+        <img
+          src={backdrop}
+          alt=""
+          loading="eager"
+          decoding="async"
+          class="h-full w-full object-cover opacity-25"
+        />
+        <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-zinc-950/40"></div>
+      </div>
+
+      <div class="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 pt-10 sm:flex-row">
+        <img
+          src={poster}
+          alt={detail.name}
+          loading="eager"
+          decoding="async"
+          class="w-36 shrink-0 self-start rounded-lg border border-zinc-800/70 object-cover shadow-lg sm:w-44"
+        />
+        <div class="flex min-w-0 flex-col justify-end gap-3">
+          <h1 class="text-3xl font-bold tracking-tight md:text-4xl">{detail.name}</h1>
+          <ul class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-400">
+            <li class="rounded border border-zinc-700 px-1.5 py-0.5 text-xs font-medium uppercase tracking-wide text-zinc-300">
+              {type === "movie" ? "Movie" : "Series"}
+            </li>
+            {year && <li>{year}</li>}
+            {
+              detail.imdbRating && (
+                <li class="flex items-center gap-1">
+                  <span class="text-yellow-500" aria-hidden="true">★</span>
+                  {detail.imdbRating}
+                </li>
+              )
+            }
+            {detail.runtime && <li>{detail.runtime}</li>}
+          </ul>
+          {
+            detail.genres && detail.genres.length > 0 && (
+              <ul class="flex flex-wrap gap-2">
+                {detail.genres.map((genre) => (
+                  <li class="rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1 text-xs text-zinc-300">
+                    {genre}
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+          {
+            detail.description && (
+              <p class="max-w-3xl text-sm leading-relaxed text-zinc-400">
+                {detail.description}
+              </p>
+            )
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto mt-8 flex max-w-6xl flex-col gap-6 px-4">
+      <WatchPanel client:load target={target} title={detail.name} backHref="/" />
+
+      {
+        isSeries && (
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                {isMultiSeason ? `Season ${activeSeason} episodes` : "Episodes"}
+              </h2>
+              {isMultiSeason && (
+                <label class="flex items-center gap-2 text-sm text-zinc-400">
+                  Season
+                  <select
+                    id="season-select"
+                    class="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 focus:border-purple-500 focus:outline-none"
+                  >
+                    {seasons.map((s) => (
+                      <option value={String(s)} selected={s === activeSeason}>
+                        {s === 0 ? "Specials" : `Season ${s}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+
+            <ul id="episode-list" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {episodes.map((episode) => (
+                <li>
+                  <button
+                    type="button"
+                    class="episode-btn w-full rounded-lg border border-zinc-800/70 bg-zinc-900/50 px-4 py-3 text-left transition hover:border-purple-500/80 hover:bg-zinc-900"
+                    data-season={String(episode.season)}
+                    data-episode={String(episode.number)}
+                    data-title={episode.name}
+                  >
+                    <span class="flex items-baseline gap-3">
+                      <span class="shrink-0 text-sm font-semibold text-purple-400">
+                        E{episode.number}
+                      </span>
+                      <span class="min-w-0 truncate text-sm text-zinc-200">
+                        {episode.name || `Episode ${episode.number}`}
+                      </span>
+                    </span>
+                    {episode.overview && (
+                      <span class="mt-1 line-clamp-2 block text-xs leading-relaxed text-zinc-500">
+                        {episode.overview}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+    </section>
+  </main>
+
+  <!-- Episode/season wiring (plain DOM, see src/scripts/detail.ts). -->
+  <script>
+    import "@/scripts/detail";
+  </script>
+</Layout>
