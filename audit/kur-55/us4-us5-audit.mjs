@@ -12,7 +12,7 @@
 //  US-1 regression - cw row still renders on home
 import { chromium } from '../kur-32/node_modules/playwright/index.mjs';
 
-const BASE = 'http://127.0.0.1:4600';
+const BASE = 'https://videasy.kurulabs.dpdns.org';
 const browser = await chromium.launch({ executablePath: '/Users/user/Library/Caches/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell' });
 
 const results = { mobile: {}, desktop: {}, errors: [] };
