@@ -97,3 +97,27 @@ klik link "HERE" di interstitial cookie → frame harus tetap `https://`.
   0 small targets, 0 overflow, 0 js errors di 375/390/414/768) + cw-desktop.mjs
   (1280px). Semua hijau pasca-deploy live URL.
 - Deferred ke follow-up: US-4 next-episode, US-5 sticky header/chrome, PR-4/PR-5.
+
+## KUR-55 US-4/US-5 + AC3 live (2026-10-02)
+- PR#4 `feat/kur-55-us4-us5` (80f207d..be2c237): US-4 next-episode chip di
+  player chrome (Player.tsx — muncul di final 90s / after ended via PLAYER_EVENT
+  relay, auto-hide kalau embed self-advance, 44px target, one-tap swap ke ep
+  berikutnya), episode list 16:9 stills + watched state + CW highlight +
+  ?ep= deep link (TitlePage.astro + detail.ts), US-5 sticky mini-header 56px
+  (stickyHeader.ts, IntersectionObserver, sync CTA dari hero via
+  MutationObserver). Merged 38edb2a + deployed.
+- PR#6 `feat/kur-55-us4-ac3-next-unwatched` (66650e0, merge 6fb0d09): AC3 —
+  balik ke series tanpa progress in-flight -> hero CTA rewrite ke episode
+  unwatched pertama season ter-render ("Play S{n}E{m}"); guard: ?ep= pin wins,
+  cw.v1 in-progress wins (cwResumeLabel), season full-watched = no-op.
+  nextUnwatched.ts jalan SEBELUM cwResumeLabel (urutan import di TitlePage).
+- Deploy catatan: satu glitch tar chain (scp reported ok tapi file absen di
+  homelab2 — app sempat down ~1 menit dengan dist terhapus). Recovery: re-scp +
+  md5 verify kedua sisi sebelum extract. Lesson: selalu md5sum check sebelum
+  rm -rf dist lama.
+- Verify live: audit/kur-55/us4-us5-audit.mjs (chip hidden->visible 44px,
+  click swap ke S2E6, sticky 56px/44px synced, stills 13/13, watched,
+  deep-link highlight, cw row regression; 2 console noise: Cinemeta 429 +
+  1 DNS miss, non-blocking) + audit/kur-55/ac3-probe.mjs (4 skenario AC3
+  semua benar) + audit/kur-32/mobile-audit.mjs (8/8 combo: 0 overflow,
+  0 small targets, 0 js errors).
