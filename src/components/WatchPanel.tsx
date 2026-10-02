@@ -7,6 +7,10 @@ interface WatchPanelProps {
   /** Series title (episode naming) or movie title. */
   title: string;
   backHref: string;
+  /** Auto-mount the player on first render (deep-link ?play=1 / Resume, US-2). */
+  autoPlay?: boolean;
+  /** Resume start position in seconds (US-1, ?progress= embed param). */
+  startSeconds?: number;
 }
 
 type NowPlaying = {
@@ -20,12 +24,21 @@ function isEpisodeTarget(t: EmbedTarget): t is EmbedTarget & { season: number; e
 
 /**
  * Detail-page watch panel. Renders the player only after an explicit play
- * action (poster placeholder, episode button, or Play button); the page stays
- * cheap and quiet otherwise. Episode buttons reach it via the `videasy:play`
- * DOM event dispatched from src/scripts/detail.ts.
+ * action (poster placeholder, episode button, Play/Resume CTA, or ?play=1
+ * deep link); the page stays cheap and quiet otherwise. Episode buttons reach
+ * it via the `videasy:play` DOM event from src/scripts/detail.ts.
  */
-export function WatchPanel({ target, title, backHref }: WatchPanelProps) {
-  const [now, setNow] = useState<NowPlaying | null>(null);
+export function WatchPanel({ target, title, backHref, autoPlay = false, startSeconds }: WatchPanelProps) {
+  const [now, setNow] = useState<NowPlaying | null>(
+    autoPlay
+      ? {
+          target,
+          label: isEpisodeTarget(target)
+            ? `S${target.season}E${target.episode}`
+            : title,
+        }
+      : null,
+  );
   const [bound] = useState(() => {
     // Bridge from the plain-TS episode list (src/scripts/detail.ts).
     // useState initializer: bound exactly once, even in StrictMode/dev remounts.
@@ -61,8 +74,15 @@ export function WatchPanel({ target, title, backHref }: WatchPanelProps) {
     return (
       <div
         data-watch-panel=""
-        className="scroll-mt-20 overflow-hidden rounded-xl border border-zinc-800/70 bg-zinc-900/50"
+        className="scroll-mt-20 relative overflow-hidden rounded-[var(--radius-player)] border border-zinc-800/70 bg-zinc-900/50"
       >
+        {/* Pre-play surface reads as "video about to happen": blurred poster
+            backdrop behind the FAB (design §4-D). */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 scale-110 bg-cover bg-center opacity-40 blur-2xl motion-base"
+          data-watch-backdrop={title}
+        />
         <button
           type="button"
           onClick={() =>
@@ -73,18 +93,18 @@ export function WatchPanel({ target, title, backHref }: WatchPanelProps) {
                 : title,
             )
           }
-          className="group relative flex aspect-video w-full items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="relative flex aspect-video w-full items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 motion-fast active:scale-[0.98]"
           aria-label={`Play ${title}`}
         >
           {isEpisodeTarget(target) ? (
-            <span className="text-sm text-zinc-400">
+            <span className="text-sm text-zinc-300">
               Play S{target.season}E{target.episode}
             </span>
           ) : (
-            <span className="text-sm text-zinc-400">Play movie</span>
+            <span className="text-sm text-zinc-300">Play movie</span>
           )}
           <span className="absolute inset-0 flex items-center justify-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg transition group-hover:scale-105 group-hover:bg-purple-500 focus:outline-none">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg motion-fast group-hover:scale-105 active:scale-95">
               <svg viewBox="0 0 24 24" className="ml-1 h-7 w-7" fill="currentColor" aria-hidden="true">
                 <path d="M8 5.14v13.72L19 12 8 5.14Z" />
               </svg>
@@ -105,7 +125,7 @@ export function WatchPanel({ target, title, backHref }: WatchPanelProps) {
           Back to search
         </a>
       </div>
-      <Player target={now.target} />
+      <Player target={now.target} startSeconds={startSeconds} title={title} label={now.label} />
     </div>
   );
 }
