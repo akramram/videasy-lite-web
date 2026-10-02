@@ -1,0 +1,69 @@
+---
+// Continue-watching row (US-1, home) — client-rendered from localStorage
+// (videasy:cw.v1). Hidden entirely when empty — no placeholder. Cards:
+// 16:9 metahub still, gradient scrim, title, sub-line, 3px progress track,
+// remove control (44px target). Order: most recent first (store-sorted).
+---
+<div
+  id="cw-row"
+  data-cw-row
+  class="hidden px-4 pb-2"
+>
+  <div class="mx-auto flex max-w-6xl items-center justify-between pb-3">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Continue watching</h2>
+  </div>
+  <ul
+    id="cw-list"
+    class="mx-auto flex max-w-6xl gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    style="scroll-snap-type: x mandatory; overscroll-behavior-x: contain;"
+  >
+    <!-- cards injected by cwHome.ts -->
+  </ul>
+</div>
+
+<template id="cw-card-template">
+  <li
+    class="cw-card relative w-[66vw] shrink-0 sm:w-60"
+    style="scroll-snap-align: start;"
+  >
+    <a class="group block overflow-hidden rounded-[var(--radius-card)] outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950">
+      <span class="relative block aspect-video w-full bg-zinc-800">
+        <img
+          class="h-full w-full object-cover motion-base opacity-0"
+          loading="lazy"
+          decoding="async"
+          alt=""
+        />
+        <span class="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent"></span>
+        <!-- remove control: 44px target (KUR-32/33 regression guard) -->
+        <button
+          type="button"
+          class="cw-remove absolute right-1 top-1 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-zinc-950/70 text-zinc-300 outline-none motion-fast hover:bg-zinc-950 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-purple-500"
+          aria-label="Remove from Continue watching"
+        >
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
+          </svg>
+        </button>
+        <span class="absolute inset-x-0 bottom-0 z-[5] flex flex-col gap-1 p-3">
+          <span class="cw-title block truncate text-sm font-medium text-zinc-100"></span>
+          <span class="cw-sub block truncate text-xs text-zinc-400 tabular-nums"></span>
+          <span class="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-white/15">
+            <span class="cw-progress block h-full rounded-full bg-purple-500" style="width:0%"></span>
+          </span>
+        </span>
+        <span class="absolute inset-0 z-[6] hidden items-center justify-center group-hover:flex">
+          <span class="flex h-12 w-12 items-center justify-center rounded-full bg-purple-600/90 text-white shadow-lg">
+            <svg viewBox="0 0 24 24" class="ml-0.5 h-5 w-5" fill="currentColor" aria-hidden="true">
+              <path d="M8 5.14v13.72L19 12 8 5.14Z" />
+            </svg>
+          </span>
+        </span>
+      </span>
+    </a>
+  </li>
+</template>
+
+<script>
+  import "@/scripts/cwHome";
+</script>

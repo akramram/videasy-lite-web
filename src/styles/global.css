@@ -1,1 +1,136 @@
 @import "tailwindcss";
+
+/*
+ * KUR-49 PR-0 — design & motion tokens (KUR-49.2 spec §2/§3).
+ * Values mirror the existing zinc/purple palette — a formalization, not a
+ * rebrand. Every later PR consumes tokens only; no ad-hoc hex/durations.
+ */
+
+:root {
+  /* Color tokens (KUR-49.2 §2) */
+  --color-canvas: oklch(0.141 0.005 285.823); /* zinc-950 */
+  --color-surface: oklch(0.21 0.006 285.885); /* zinc-900 */
+  --color-border: var(--color-zinc-800);
+  --color-border-strong: var(--color-zinc-700);
+  --color-text-primary: var(--color-zinc-100);
+  --color-text-secondary: var(--color-zinc-400);
+  --color-text-muted: var(--color-zinc-500); /* floor; zinc-600 banned for text */
+  --color-accent: var(--color-purple-500);
+  --color-accent-strong: var(--color-purple-600);
+  --color-rating: var(--color-amber-400);
+  --color-danger: var(--color-red-400);
+
+  /* Shape tokens (KUR-49.2 §2) */
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --radius-player: 16px;
+  --radius-still: 8px;
+
+  /* Shadow tokens (KUR-49.2 §2) */
+  --shadow-card-hover: 0 12px 32px -8px rgb(0 0 0 / 0.55);
+  --shadow-player: 0 8px 24px rgb(0 0 0 / 0.4);
+
+  /* Motion tokens (KUR-49.2 §3, M1–M10) */
+  --motion-press: 80ms cubic-bezier(0.3, 0, 0.8, 0.15);
+  --motion-fast: 140ms cubic-bezier(0.2, 0, 0, 1);
+  --motion-base: 200ms cubic-bezier(0.2, 0, 0, 1);
+  --motion-enter: 240ms cubic-bezier(0.05, 0.7, 0.1, 1);
+  --motion-exit: 160ms cubic-bezier(0.3, 0, 0.8, 0.15);
+  --motion-page: 240ms cubic-bezier(0.05, 0.7, 0.1, 1);
+  --motion-progress: 300ms cubic-bezier(0.2, 0, 0, 1);
+  --motion-spring: 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Expose the token palette to Tailwind utilities (bg-surface, text-accent…). */
+@theme inline {
+  --color-surface: var(--color-surface);
+  --color-canvas: var(--color-canvas);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-accent: var(--color-accent);
+  --color-accent-strong: var(--color-accent-strong);
+  --color-rating: var(--color-rating);
+  --color-danger: var(--color-danger);
+}
+
+/* Motion utility classes — use instead of one-off transition-* values. */
+.motion-press {
+  transition-duration: 80ms;
+  transition-timing-function: cubic-bezier(0.3, 0, 0.8, 0.15);
+}
+.motion-fast {
+  transition-duration: 140ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.motion-base {
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.motion-enter {
+  transition-duration: 240ms;
+  transition-timing-function: cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+/* M1 — page load: fade-rise, staggered. Pure CSS on load, runs once. */
+@keyframes motion-fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anim-fade-rise {
+  animation: motion-fade-rise var(--motion-page) both;
+}
+.stagger-1 {
+  animation-delay: 60ms;
+}
+.stagger-2 {
+  animation-delay: 120ms;
+}
+
+/* M3/M9 — skeleton shimmer. */
+@keyframes motion-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.anim-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.04) 25%,
+    rgb(255 255 255 / 0.1) 37%,
+    rgb(255 255 255 / 0.04) 63%
+  );
+  background-size: 200% 100%;
+  animation: motion-shimmer 1400ms linear infinite;
+}
+
+/* M10 — reduced motion: non-negotiable. Kill translate/scale/stagger/shimmer;
+   keep only short opacity fades. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  .anim-shimmer {
+    animation: none !important;
+    background: rgb(255 255 255 / 0.08) !important;
+  }
+  .anim-fade-rise {
+    animation: none !important;
+  }
+}

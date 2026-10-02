@@ -11,21 +11,61 @@ const { metas } = Astro.props;
 <ul class="mx-auto grid w-full max-w-6xl grid-cols-2 gap-4 px-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
   {
     metas.map((m) => (
-      <li class="group">
-        <a href={`/title/${m.id}`} class="block" aria-label={`Open ${m.name}`}>
-          <span class="block aspect-2/3 w-full overflow-hidden rounded-lg bg-zinc-800 transition group-hover:ring-2 group-hover:ring-purple-500">
+      <li class="group anim-fade-rise">
+        <a
+          href={m.type === "series" ? `/tv/${m.id}` : `/title/${m.id}`}
+          class="block rounded-[var(--radius-card)] outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 motion-fast active:scale-[0.97]"
+          aria-label={`Open ${m.name}`}
+        >
+          <span class="relative block aspect-2/3 w-full overflow-hidden rounded-[var(--radius-card)] bg-zinc-800 motion-fast group-hover:-translate-y-1 group-hover:ring-2 group-hover:ring-purple-500 group-hover:shadow-[var(--shadow-card-hover)]">
             <img
               src={posterUrl(m.id)}
               alt={m.name}
               loading="lazy"
               decoding="async"
+              width="300"
+              height="450"
               class="h-full w-full object-cover"
             />
+            <!-- US-2: desktop hover reveals a direct Play action. Hover-only;
+                 the grid stays quiet on touch (design §2). -->
+            <span
+              class="play-now absolute inset-0 hidden z-10 cursor-pointer items-center justify-center bg-zinc-950/60 opacity-0 motion-base group-hover:opacity-100 md:flex"
+              data-href={m.type === "series" ? `/tv/${m.id}` : `/title/${m.id}`}
+              data-imdb={m.id}
+              data-name={m.name}
+              data-type={m.type ?? "movie"}
+              data-year={m.releaseInfo}
+              role="button"
+              tabindex="-1"
+              aria-label={`Play ${m.name} now`}
+              aria-hidden="true"
+            >
+              <span class="flex h-14 w-14 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg motion-fast group-hover/play:scale-110">
+                <svg viewBox="0 0 24 24" class="ml-1 h-6 w-6" fill="currentColor" aria-hidden="true">
+                  <path d="M8 5.14v13.72L19 12 8 5.14Z" />
+                </svg>
+              </span>
+            </span>
           </span>
           <span class="mt-2 block truncate text-sm text-zinc-200">{m.name}</span>
-          <span class="block text-xs text-zinc-500">{m.releaseInfo}</span>
+          <span class="block text-xs text-zinc-500 tabular-nums">{m.releaseInfo}</span>
         </a>
       </li>
     ))
   }
 </ul>
+
+<script>
+  // US-2 hover overlay: "Play now" deep-links to the detail page with ?play=1;
+  // the detail page auto-mounts the player on that param. The overlay sits on
+  // top of the poster link, so intercept the click before navigation.
+  document.addEventListener("click", (event) => {
+    const trigger = (event.target as Element | null)?.closest?.(".play-now");
+    if (!trigger) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const href = trigger.getAttribute("data-href");
+    if (href) window.location.assign(`${href}?play=1`);
+  });
+</script>
