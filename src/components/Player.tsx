@@ -128,13 +128,14 @@ export function Player({ target, startSeconds, title, label, cw, onNextEpisode }
   // self-advances (autoNext), activeEp moves ahead and `next` follows — the
   // chip hides once active is the season's last episode or cw is absent.
   const episodeList = cw && cw.type === "tv" ? (cw.episodes ?? []) : [];
-  const sortedEpisodes = [...episodeList].sort((a, b) => a.number - b.number);
   let nextEpisode: { season: number; episode: number } | null = null;
   if (cw && cw.type === "tv" && activeEp && onNextEpisode) {
-    const idx = sortedEpisodes.findIndex(
-      (e) => e.season === activeEp.season && e.number === activeEp.episode,
-    );
-    const upcoming = idx >= 0 ? sortedEpisodes[idx + 1] : undefined;
+    // Numbers reset per season — filter to the active season BEFORE sorting.
+    const seasonEpisodes = episodeList
+      .filter((e) => e.season === activeEp.season)
+      .sort((a, b) => a.number - b.number);
+    const idx = seasonEpisodes.findIndex((e) => e.number === activeEp.episode);
+    const upcoming = idx >= 0 ? seasonEpisodes[idx + 1] : undefined;
     if (upcoming) {
       const duration = epProgress?.durationSec;
       const runtimeFallback = cw.runtimeMin ? cw.runtimeMin * 60 : undefined;
@@ -237,6 +238,7 @@ export function Player({ target, startSeconds, title, label, cw, onNextEpisode }
       {nextEpisode && (
         <button
           type="button"
+          data-next-episode={nextEpisode.season > 0 ? `S${nextEpisode.season}E${nextEpisode.episode}` : ""}
           onClick={() => onNextEpisode?.(nextEpisode.season, nextEpisode.episode)}
           className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-[var(--radius-control)] border border-purple-500/70 bg-purple-600/15 px-4 py-2 text-left motion-base hover:bg-purple-600/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
         >
