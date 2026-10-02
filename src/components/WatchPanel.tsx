@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Player } from "@/components/Player";
 import type { EmbedTarget } from "@/lib/videasy";
+import { startWallClockSession, stopWallClockSession, installWallClockFallback } from "@/scripts/cwWallClock";
+import type { CwRelayContext } from "@/scripts/cwPlayer";
 
 interface WatchPanelProps {
   target: EmbedTarget;
@@ -11,6 +13,8 @@ interface WatchPanelProps {
   autoPlay?: boolean;
   /** Resume start position in seconds (US-1, ?progress= embed param). */
   startSeconds?: number;
+  /** Continue-watching context; relay attaches only when present (US-1). */
+  cw?: CwRelayContext;
 }
 
 type NowPlaying = {
@@ -28,7 +32,7 @@ function isEpisodeTarget(t: EmbedTarget): t is EmbedTarget & { season: number; e
  * deep link); the page stays cheap and quiet otherwise. Episode buttons reach
  * it via the `videasy:play` DOM event from src/scripts/detail.ts.
  */
-export function WatchPanel({ target, title, backHref, autoPlay = false, startSeconds }: WatchPanelProps) {
+export function WatchPanel({ target, title, backHref, autoPlay = false, startSeconds, cw }: WatchPanelProps) {
   const [now, setNow] = useState<NowPlaying | null>(
     autoPlay
       ? {
@@ -39,6 +43,33 @@ export function WatchPanel({ target, title, backHref, autoPlay = false, startSec
         }
       : null,
   );
+  // US-1: episode switches replace the target wholesale; the wall-clock
+  // fallback session + Player relay must follow the one actually playing.
+  const [cwNow, setCwNow] = useState<CwRelayContext | null>(cw ?? null);
+  const cwRef = useRef<CwRelayContext | null>(cw ?? null);
+  cwRef.current = cw ?? null;
+
+  // US-1 wall-clock fallback session (Amendment 1: relay is primary, this is
+  // the >=15s-no-event fallback). Runs while a player is mounted; the ticker
+  // itself is installed below so it survives across episode switches.
+  useEffect(() => {
+    if (!cwNow) return;
+    startWallClockSession({
+      imdbId: cwNow.imdbId,
+      title: cwNow.title,
+      type: cwNow.type,
+      season: cwNow.type === "tv" ? now?.target.season : undefined,
+      episode: cwNow.type === "tv" ? now?.target.episode : undefined,
+    });
+    return () => stopWallClockSession();
+  }, [cwNow, now?.target.season, now?.target.episode]);
+
+  // The 10s estimation ticker — installed once per active player lifetime.
+  useEffect(() => {
+    if (!cwNow) return;
+    const runtimeMinFor = () => cwNow.runtimeMin;
+    return installWallClockFallback(runtimeMinFor);
+  }, [cwNow]);
   const [bound] = useState(() => {
     // Bridge from the plain-TS episode list (src/scripts/detail.ts).
     // useState initializer: bound exactly once, even in StrictMode/dev remounts.
@@ -51,6 +82,10 @@ export function WatchPanel({ target, title, backHref, autoPlay = false, startSec
             target: { ...target, type: "tv", season, episode },
             label: epTitle ? `S${season}E${episode} · ${epTitle}` : `S${season}E${episode}`,
           });
+          // Keep the CW context identical but pin the played episode.
+          if (cwRef.current) {
+            setCwNow({ ...cwRef.current });
+          }
           document
             .querySelector("[data-watch-panel]")
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -63,6 +98,8 @@ export function WatchPanel({ target, title, backHref, autoPlay = false, startSec
 
   function play(t: EmbedTarget, label: string) {
     setNow({ target: t, label });
+    // Keep the CW context identical but pin the played episode.
+    if (cwRef.current) setCwNow({ ...cwRef.current });
     // Bring the player into view; it mounts above the episode list.
     document.querySelector("[data-watch-panel]")?.scrollIntoView({
       behavior: "smooth",
@@ -125,7 +162,7 @@ export function WatchPanel({ target, title, backHref, autoPlay = false, startSec
           Back to search
         </a>
       </div>
-      <Player target={now.target} startSeconds={startSeconds} title={title} label={now.label} />
+      <Player target={now.target} startSeconds={startSeconds} title={title} label={now.label} cw={cwNow ?? undefined} />
     </div>
   );
 }

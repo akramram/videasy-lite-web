@@ -5,6 +5,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { SearchBox } from "@/islands";
 import Layout from "@/layouts/Layout.astro";
 import MovieGrid from "@/components/MovieGrid.astro";
+import ContinueWatching from "@/components/ContinueWatching.astro";
 
 let metas: Meta[] = [];
 let error: string | null = null;
@@ -24,6 +25,10 @@ try {
       </h1>
       <SearchBox client:only="react" />
     </section>
+
+    <!-- US-1: continue-watching row, client-rendered from videasy:cw.v1;
+         hidden entirely when the store is empty (no placeholder). -->
+    <ContinueWatching />
 
     <section class="px-4">
       <h2 class="mx-auto max-w-6xl pb-4 text-sm font-semibold tracking-wide text-zinc-400 uppercase">

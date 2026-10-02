@@ -28,6 +28,14 @@ const isMultiSeason = isSeries && seasons.length > 1;
 // ?s=N wins when it names a real season; otherwise the first that exists.
 const activeSeason =
   isMultiSeason && seasons.includes(season) ? season : (seasons[0] ?? 1);
+// US-1 deep link: Continue-watching cards emit ?s=N&ep=SE{S}E{E}. ?s renders
+// the season list; ?ep (when it matches the rendered season) pins the exact
+// resume episode as the default embed target.
+const epMatch = /^S(\d+)E(\d+)$/.exec(Astro.url.searchParams.get("ep") ?? "");
+const resumeEpisode =
+  epMatch && Number(epMatch[1]) === activeSeason
+    ? { season: Number(epMatch[1]), episode: Number(epMatch[2]) }
+    : null;
 const episodes = isSeries ? videos.filter((v) => v.season === activeSeason) : [];
 
 const year = parseYear(detail.releaseInfo);
@@ -35,7 +43,12 @@ const year = parseYear(detail.releaseInfo);
 const target: EmbedTarget =
   type === "movie"
     ? { type: "movie", id: tmdbId(detail) ?? id }
-    : { type: "tv", id: tmdbId(detail) ?? id, season: activeSeason, episode: 1 };
+    : {
+        type: "tv",
+        id: tmdbId(detail) ?? id,
+        season: resumeEpisode?.season ?? activeSeason,
+        episode: resumeEpisode?.episode ?? 1,
+      };
 
 const backdrop = `https://images.metahub.space/background/medium/${detail.id}/img`;
 const poster = detail.poster ?? posterUrl(detail.id);
@@ -51,6 +64,19 @@ const startSeconds =
 // US-1 hero CTA label: Resume when a fresh cw.v1 entry exists, else Play.
 const ctaSeason = target.type === "tv" ? target.season : undefined;
 const ctaEpisode = target.type === "tv" ? target.episode : undefined;
+
+// US-1 continue-watching context for the player relay (Amendment 1): the
+// PLAYER_EVENT listener needs the page's canonical identity — IMDB id (store
+// key), TMDB id (embed id), human title, runtime minutes (wall-clock fallback
+// cap). runtime parses "92 min" -> 92; absent on some records.
+const runtimeMatch = /^(\d+)\s*min$/.exec(detail.runtime ?? "");
+const cwContext = {
+  imdbId: detail.id,
+  tmdbId: target.id,
+  type: type === "movie" ? ("movie" as const) : ("tv" as const),
+  title: detail.name,
+  runtimeMin: runtimeMatch ? Number(runtimeMatch[1]) : undefined,
+};
 ---
 
 <Layout title={`${detail.name} — Videasy Lite`}>
@@ -157,6 +183,7 @@ const ctaEpisode = target.type === "tv" ? target.episode : undefined;
           backHref="/"
           autoPlay={autoPlay}
           startSeconds={startSeconds}
+          cw={cwContext}
         />
       </div>
 
@@ -221,5 +248,6 @@ const ctaEpisode = target.type === "tv" ? target.episode : undefined;
   <script>
     import "@/scripts/detail";
     import "@/scripts/backdrop";
+    import "@/scripts/cwResumeLabel";
   </script>
 </Layout>
