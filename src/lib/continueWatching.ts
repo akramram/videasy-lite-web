@@ -71,11 +71,39 @@ export function loadWatched(): string[] {
   return safeParse<string[]>(localStorage.getItem(WATCHED_KEY), []);
 }
 
-function markWatched(imdbId: string): void {
+function addWatched(key: string): void {
   const watched = loadWatched();
-  if (!watched.includes(imdbId)) {
-    localStorage.setItem(WATCHED_KEY, JSON.stringify([...watched, imdbId]));
+  if (!watched.includes(key)) {
+    localStorage.setItem(WATCHED_KEY, JSON.stringify([...watched, key]));
   }
+}
+
+function markWatched(imdbId: string): void {
+  addWatched(imdbId);
+}
+
+/**
+ * US-4: episode-level watched checkmark (KUR-49.2 §4-C). Episodes store an
+ * additive "type:id-s{S}e{E}" key alongside the legacy whole-title ids, so
+ * existing videasy:watched.v1 arrays keep working unchanged.
+ */
+export function isEpisodeWatched(
+  imdbId: string,
+  season: number,
+  episode: number,
+): boolean {
+  const key = episodeWatchedKey(imdbId, season, episode);
+  if (loadWatched().includes(key)) return true;
+  // Whole-title legacy entry counts as "everything watched" for that id.
+  return loadWatched().includes(imdbId);
+}
+
+export function episodeWatchedKey(imdbId: string, season: number, episode: number): string {
+  return `${imdbId}-s${season}e${episode}`;
+}
+
+export function markEpisodeWatched(imdbId: string, season: number, episode: number): void {
+  addWatched(episodeWatchedKey(imdbId, season, episode));
 }
 
 /** Clamp + compute progress fraction from position/duration. */

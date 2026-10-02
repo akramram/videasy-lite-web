@@ -15,7 +15,7 @@
 //                for that key for 10s to avoid double-fires.
 // Key comes from EVENT data (type/id/season/episode), never our iframe src.
 
-import { upsertProgress } from "@/lib/continueWatching";
+import { upsertProgress, markEpisodeWatched, WATCHED_THRESHOLD } from "@/lib/continueWatching";
 
 const ALLOWED_ORIGINS = new Set([
   "https://player.videasy.net",
@@ -48,6 +48,37 @@ export interface CwRelayContext {
   type: "movie" | "tv";
   title: string;
   runtimeMin?: number;
+  /** US-4: episodes of the active season, keyed "S{s}E{e}" — episode titles
+      + last-episode detection for the next-episode chip. */
+  episodes?: { season: number; number: number; name: string }[];
+}
+
+/** US-4: one accepted PLAYER_EVENT sample, post-throttle. */
+export interface RelaySample {
+  season: number;
+  episode: number;
+  positionSec: number;
+  durationSec?: number;
+}
+
+/**
+ * Subscribe to accepted relay samples (US-4). Returns a detach function.
+ *
+ * attachCwRelay keeps its listener set per attach instance (function-local
+ * state), so a registry here bridges instances: any attached relay fans its
+ * accepted samples out to module subscribers. Detach removes the subscription.
+ */
+const sampleRegistry = new Set<(sample: RelaySample) => void>();
+
+export function attachCwRelaySamples(
+  listener: (sample: RelaySample) => void,
+): () => void {
+  sampleRegistry.add(listener);
+  return () => sampleRegistry.delete(listener);
+}
+
+function notifySamples(sample: RelaySample): void {
+  for (const fn of sampleRegistry) fn(sample);
 }
 
 /** Resolved identity of an event, from the event data itself. */
@@ -134,6 +165,18 @@ export function attachCwRelay(
     const season = id.season ?? targetSeason;
     const episode = id.episode ?? targetEpisode;
 
+    // US-4: record which episode produced this sample so the next-episode
+    // chip follows the embed even after it self-advances (autoNext).
+    if (ctx.type === "tv" && season && episode) {
+      notifySamples({ season, episode, positionSec, durationSec });
+    }
+
+    // US-4: resolve the episode title from the page's episode list so the CW
+    // row keeps its "S2E4 · Mango" subline when events carry only numbers.
+    const epMeta = ctx.episodes?.find(
+      (e) => e.season === season && e.number === episode,
+    );
+
     upsertProgress({
       imdbId: ctx.imdbId,
       tmdbId: id.tmdbId || undefined,
@@ -141,11 +184,27 @@ export function attachCwRelay(
       title: ctx.title,
       season: ctx.type === "tv" ? season : undefined,
       episode: ctx.type === "tv" ? episode : undefined,
+      episodeTitle: epMeta?.name,
       runtimeMin: ctx.runtimeMin,
       positionSec,
       durationSec,
       fromEvent: true,
     });
+
+    // US-4: episode-keyed watched marking at the finished threshold, so the
+    // episode list can show checkmarks (KUR-49.2 §4-C) without touching
+    // legacy whole-title entries. Threshold logic lives here because only the
+    // relay sees per-episode real progress; next-episode targeting uses the
+    // page's episode list, not this store.
+    if (ctx.type === "tv" && season && episode) {
+      const knownDuration = durationSec ?? (ctx.runtimeMin ? ctx.runtimeMin * 60 : undefined);
+      const atThreshold =
+        kind === "ended" ||
+        (knownDuration && knownDuration > 0
+          ? positionSec / knownDuration >= WATCHED_THRESHOLD
+          : false);
+      if (atThreshold) markEpisodeWatched(ctx.imdbId, season, episode);
+    }
   }
 
   window.addEventListener("message", onMessage);

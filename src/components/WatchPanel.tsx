@@ -107,6 +107,17 @@ export function WatchPanel({ target, title, backHref, autoPlay = false, startSec
     });
   }
 
+  /** US-4: chip handler — same series/server, next episode, ≤1 extra tap. */
+  function playNextEpisode(season: number, episode: number) {
+    const epMeta = cwRef.current?.episodes?.find(
+      (e) => e.season === season && e.number === episode,
+    );
+    play(
+      { ...target, type: "tv", season, episode },
+      epMeta?.name ? `S${season}E${episode} · ${epMeta.name}` : `S${season}E${episode}`,
+    );
+  }
+
   if (!now) {
     return (
       <div
@@ -162,7 +173,14 @@ export function WatchPanel({ target, title, backHref, autoPlay = false, startSec
           Back to search
         </a>
       </div>
-      <Player target={now.target} startSeconds={startSeconds} title={title} label={now.label} cw={cwNow ?? undefined} />
+      <Player
+        target={now.target}
+        startSeconds={startSeconds}
+        title={title}
+        label={now.label}
+        cw={cwNow ?? undefined}
+        onNextEpisode={playNextEpisode}
+      />
     </div>
   );
 }
