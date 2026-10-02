@@ -83,3 +83,17 @@ klik link "HERE" di interstitial cookie → frame harus tetap `https://`.
 - Verify produksi pasca-deploy: / 200, search heat+1995 rank#1 Heat(1995),
   /title/tt0113277 200, /tv/tt0903747 200 (+?s=2 S2 episodes), cross-302s,
   unknown id 404, publik tunnel semua 200.
+
+## KUR-49 streaming UX live (2026-10-02)
+- `feat/kur-49-streaming-ux` (PR-0 tokens 837118c, US-2 play path 5be8475+4443c73,
+  US-8 search a11y 99c4fcd, US-1 continue watching 00f3afe+2a0ae68+audit 635dbd6)
+  merged -> kanon `feat/initial-implementation` (PR videasy-lite-web#2, merge
+  0ae88a7) + deployed (tar chain, HOST=0.0.0.0, pm2 save).
+- Live: US-1 continue-watching row (videasy:cw.v1, PLAYER_EVENT relay primary +
+  wall-clock fallback), one-tap resume deep links ?play=1&progress&s&ep, hero
+  Resume relabel, loading shell M4, search skeletons + a11y, motion tokens M10.
+- Verify: audit/kur-49/cw-audit.mjs (375px mobile, seeded store — row, deep-link
+  params, 44px remove, no overflow) + audit/kur-32/mobile-audit.mjs (regression:
+  0 small targets, 0 overflow, 0 js errors di 375/390/414/768) + cw-desktop.mjs
+  (1280px). Semua hijau pasca-deploy live URL.
+- Deferred ke follow-up: US-4 next-episode, US-5 sticky header/chrome, PR-4/PR-5.
