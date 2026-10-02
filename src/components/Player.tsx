@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { embedUrl } from "@/lib/videasy";
 import type { EmbedTarget, ServerOption } from "@/lib/videasy";
-import { attachCwRelay } from "@/scripts/cwPlayer";
+import { attachCwRelay, attachCwRelaySamples } from "@/scripts/cwPlayer";
 import { notifyEventSeen } from "@/scripts/cwWallClock";
 
 interface PlayerProps {
@@ -20,7 +20,12 @@ interface PlayerProps {
     title: string;
     runtimeMin?: number;
     /** Parse "92 min" -> 92 once in TitlePage. */
+    /** US-4: active-season episode list for the next-episode chip. */
+    episodes?: { season: number; number: number; name: string }[];
   };
+  /** US-4: start the named next episode (server selection is preserved by
+      the parent — Player stays mounted across episode switches). */
+  onNextEpisode?: (season: number, episode: number) => void;
 }
 
 const SERVERS: readonly ServerOption[] = ["videasy", "vidlink", "vidsrc"];
@@ -29,6 +34,8 @@ const SERVER_LABELS: Record<ServerOption, string> = {
   vidlink: "VidLink",
   vidsrc: "Vidsrc",
 };
+/** US-4: reveal the next-episode chip inside the final 90s of an episode. */
+const NEXT_EPISODE_WINDOW_SEC = 90;
 
 /**
  * Embedded player surface (design §4-D, M4/M5):
@@ -38,17 +45,39 @@ const SERVER_LABELS: Record<ServerOption, string> = {
  * - chrome bar under the iframe: now-playing + server switcher (persistent on
  *   touch — never overlays the iframe).
  */
-export function Player({ target, startSeconds, title, label, cw }: PlayerProps) {
+export function Player({ target, startSeconds, title, label, cw, onNextEpisode }: PlayerProps) {
   const [server, setServer] = useState<ServerOption>("videasy");
   // undefined = iframe still loading; true = loaded (faded in).
   const [loaded, setLoaded] = useState<boolean | null>(null);
   const shellStart = useRef<number>(0);
+  // US-4: the episode currently producing samples per the relay (event data
+  // wins over our embed target). null = unknown / not a series.
+  const [activeEp, setActiveEp] = useState<{ season: number; episode: number } | null>(
+    target.type === "tv" && target.season && target.episode
+      ? { season: target.season, episode: target.episode }
+      : null,
+  );
+  // US-4: last real position/duration seen from PLAYER_EVENT samples.
+  const [epProgress, setEpProgress] = useState<{ positionSec: number; durationSec?: number } | null>(
+    null,
+  );
 
   // M4: restart the loading shell whenever the embed (server or episode) swaps.
   useEffect(() => {
     setLoaded(null);
     shellStart.current = Date.now();
   }, [server, target.id, target.season, target.episode]);
+
+  // US-4: reset chip state when the requested episode changes (manual switch
+  // or parent-driven next-episode).
+  useEffect(() => {
+    setActiveEp(
+      target.type === "tv" && target.season && target.episode
+        ? { season: target.season, episode: target.episode }
+        : null,
+    );
+    setEpProgress(null);
+  }, [target.type, target.id, target.season, target.episode]);
 
   // US-1: attach the PLAYER_EVENT relay for as long as this player + episode
   // is active. Keyed on identity so an episode switch re-attaches cleanly.
@@ -82,6 +111,45 @@ export function Player({ target, startSeconds, title, label, cw }: PlayerProps) 
       detach();
     };
   }, [cw, target.season, target.episode]);
+
+  // US-4: subscribe to accepted relay samples for chip state. Events carry
+  // their own season/episode, so the chip follows the embed across autoNext
+  // self-advances (requested episode stays ours; active becomes theirs).
+  useEffect(() => {
+    if (!cw || cw.type !== "tv") return;
+    return attachCwRelaySamples((sample) => {
+      setActiveEp({ season: sample.season, episode: sample.episode });
+      setEpProgress({ positionSec: sample.positionSec, durationSec: sample.durationSec });
+    });
+  }, [cw?.imdbId, cw?.type]);
+
+  // US-4: the next episode of the active season, revealed only when the
+  // active episode enters its final 90s or has ended (AC2). When the embed
+  // self-advances (autoNext), activeEp moves ahead and `next` follows — the
+  // chip hides once active is the season's last episode or cw is absent.
+  const episodeList = cw && cw.type === "tv" ? (cw.episodes ?? []) : [];
+  const sortedEpisodes = [...episodeList].sort((a, b) => a.number - b.number);
+  let nextEpisode: { season: number; episode: number } | null = null;
+  if (cw && cw.type === "tv" && activeEp && onNextEpisode) {
+    const idx = sortedEpisodes.findIndex(
+      (e) => e.season === activeEp.season && e.number === activeEp.episode,
+    );
+    const upcoming = idx >= 0 ? sortedEpisodes[idx + 1] : undefined;
+    if (upcoming) {
+      const duration = epProgress?.durationSec;
+      const runtimeFallback = cw.runtimeMin ? cw.runtimeMin * 60 : undefined;
+      const knownDuration =
+        duration && !Number.isNaN(duration) && duration > 0 ? duration : runtimeFallback;
+      const position = epProgress?.positionSec ?? 0;
+      // Final 90s (covers ended too: position ≈ duration). No duration known
+      // (no events yet, no runtime) -> chip stays hidden (honest default).
+      const nearEnd =
+        knownDuration !== undefined && position >= Math.max(0, knownDuration - NEXT_EPISODE_WINDOW_SEC);
+      if (nearEnd) {
+        nextEpisode = { season: upcoming.season, episode: upcoming.number };
+      }
+    }
+  }
 
   function onIframeLoad() {
     const elapsed = Date.now() - shellStart.current;
@@ -161,6 +229,31 @@ export function Player({ target, startSeconds, title, label, cw }: PlayerProps) 
           ))}
         </div>
       </div>
+
+      {/* US-4 next-episode chip: appears in the final 90s / after end. One
+          tap starts episode n+1 on the same server (AC2/AC4); hidden when the
+          active episode is the season's last or events haven't reached the
+          window yet. Wired to the WatchPanel play path via onNextEpisode. */}
+      {nextEpisode && (
+        <button
+          type="button"
+          onClick={() => onNextEpisode?.(nextEpisode.season, nextEpisode.episode)}
+          className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-[var(--radius-control)] border border-purple-500/70 bg-purple-600/15 px-4 py-2 text-left motion-base hover:bg-purple-600/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+        >
+          <span className="min-w-0 truncate text-sm text-zinc-200">
+            Up next ·{" "}
+            <span className="font-semibold text-purple-300">
+              S{nextEpisode.season}E{nextEpisode.episode}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-purple-300">
+            Play next
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+              <path d="M8 5.14v13.72L19 12 8 5.14Z" />
+            </svg>
+          </span>
+        </button>
+      )}
       <p className="px-1 text-xs text-zinc-500">
         Not playing? Try another server above.
       </p>

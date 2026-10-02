@@ -76,6 +76,11 @@ const cwContext = {
   type: type === "movie" ? ("movie" as const) : ("tv" as const),
   title: detail.name,
   runtimeMin: runtimeMatch ? Number(runtimeMatch[1]) : undefined,
+  // US-4: active-season episodes for the next-episode chip (titles + last-
+  // episode detection). Whole series passed; Player filters to activeEp.
+  episodes: isSeries
+    ? videos.map((v) => ({ season: v.season, number: v.number, name: v.name }))
+    : [],
 };
 ---
 
@@ -212,31 +217,61 @@ const cwContext = {
             </div>
 
             <ul id="episode-list" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {episodes.map((episode) => (
-                <li>
-                  <button
-                    type="button"
-                    class="episode-btn w-full rounded-lg border border-zinc-800/70 bg-zinc-900/50 px-4 py-3 text-left transition hover:border-purple-500/80 hover:bg-zinc-900"
-                    data-season={String(episode.season)}
-                    data-episode={String(episode.number)}
-                    data-title={episode.name}
-                  >
-                    <span class="flex items-baseline gap-3">
-                      <span class="shrink-0 text-sm font-semibold text-purple-400">
-                        E{episode.number}
+              {
+                episodes.map((episode) => (
+                  <li>
+                    <button
+                      type="button"
+                      class="episode-btn flex w-full gap-3 rounded-lg border border-zinc-800/70 bg-zinc-900/50 p-2 text-left transition hover:border-purple-500/80 hover:bg-zinc-900"
+                      data-season={String(episode.season)}
+                      data-episode={String(episode.number)}
+                      data-title={episode.name}
+                    >
+                      <span
+                        class="relative block w-24 shrink-0 overflow-hidden rounded-[var(--radius-still)] bg-zinc-800/60"
+                        style="aspect-ratio: 16 / 9"
+                        aria-hidden="true"
+                      >
+                        {episode.thumbnail ? (
+                          <img
+                            src={episode.thumbnail}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            class="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span class="flex h-full w-full items-center justify-center text-lg font-bold text-zinc-600">
+                            {episode.number}
+                          </span>
+                        )}
+                        <!-- Watched check (US-4 §4-C): revealed by detail.ts
+                             when a cw.v1/watched.v1 entry covers this episode. -->
+                        <span class="ep-watched-check absolute inset-0 hidden items-center justify-center bg-zinc-950/60">
+                          <svg viewBox="0 0 24 24" class="h-6 w-6 text-amber-400" fill="currentColor" aria-hidden="true">
+                            <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </span>
                       </span>
-                      <span class="min-w-0 truncate text-sm text-zinc-200">
-                        {episode.name || `Episode ${episode.number}`}
+                      <span class="flex min-w-0 flex-col">
+                        <span class="flex items-baseline gap-2">
+                          <span class="ep-num shrink-0 text-sm font-semibold tabular-nums text-purple-400">
+                            E{episode.number}
+                          </span>
+                          <span class="min-w-0 truncate text-sm text-zinc-200">
+                            {episode.name || `Episode ${episode.number}`}
+                          </span>
+                        </span>
+                        {episode.overview && (
+                          <span class="mt-1 line-clamp-2 block text-xs leading-relaxed text-zinc-400">
+                            {episode.overview}
+                          </span>
+                        )}
                       </span>
-                    </span>
-                    {episode.overview && (
-                      <span class="mt-1 line-clamp-2 block text-xs leading-relaxed text-zinc-400">
-                        {episode.overview}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
+                    </button>
+                  </li>
+                ))
+              }
             </ul>
           </div>
         )
