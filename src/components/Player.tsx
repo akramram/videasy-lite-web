@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { embedUrl } from "@/lib/videasy";
 import type { EmbedTarget, ServerOption } from "@/lib/videasy";
+import { attachCwRelay } from "@/scripts/cwPlayer";
+import { notifyEventSeen } from "@/scripts/cwWallClock";
 
 interface PlayerProps {
   target: EmbedTarget;
@@ -10,6 +12,15 @@ interface PlayerProps {
   title?: string;
   /** Episode/`movie` label shown next to the title (M5). */
   label?: string;
+  /** Continue-watching context; relay attaches only when present (US-1). */
+  cw?: {
+    imdbId: string;
+    tmdbId?: string;
+    type: "movie" | "tv";
+    title: string;
+    runtimeMin?: number;
+    /** Parse "92 min" -> 92 once in TitlePage. */
+  };
 }
 
 const SERVERS: readonly ServerOption[] = ["videasy", "vidlink", "vidsrc"];
@@ -27,9 +38,9 @@ const SERVER_LABELS: Record<ServerOption, string> = {
  * - chrome bar under the iframe: now-playing + server switcher (persistent on
  *   touch — never overlays the iframe).
  */
-export function Player({ target, startSeconds, title, label }: PlayerProps) {
+export function Player({ target, startSeconds, title, label, cw }: PlayerProps) {
   const [server, setServer] = useState<ServerOption>("videasy");
-  // undefined = iframe still loading; null = loaded (faded in).
+  // undefined = iframe still loading; true = loaded (faded in).
   const [loaded, setLoaded] = useState<boolean | null>(null);
   const shellStart = useRef<number>(0);
 
@@ -38,6 +49,39 @@ export function Player({ target, startSeconds, title, label }: PlayerProps) {
     setLoaded(null);
     shellStart.current = Date.now();
   }, [server, target.id, target.season, target.episode]);
+
+  // US-1: attach the PLAYER_EVENT relay for as long as this player + episode
+  // is active. Keyed on identity so an episode switch re-attaches cleanly.
+  // Every accepted event also notifies the wall-clock fallback (it stands
+  // down while real events flow).
+  useEffect(() => {
+    if (!cw) return;
+    notifyEventSeen(); // an event may already have arrived before mount
+    const onMessage = (event: MessageEvent) => {
+      if (
+        event.origin === "https://player.videasy.net" ||
+        event.origin === "https://player.videasy.to"
+      ) {
+        notifyEventSeen();
+      }
+    };
+    window.addEventListener("message", onMessage);
+    const detach = attachCwRelay(
+      {
+        imdbId: cw.imdbId,
+        tmdbId: cw.tmdbId,
+        type: cw.type,
+        title: cw.title,
+        runtimeMin: cw.runtimeMin,
+      },
+      target.season,
+      target.episode,
+    );
+    return () => {
+      window.removeEventListener("message", onMessage);
+      detach();
+    };
+  }, [cw, target.season, target.episode]);
 
   function onIframeLoad() {
     const elapsed = Date.now() - shellStart.current;
